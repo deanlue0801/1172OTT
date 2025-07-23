@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>熊窩地圖 - 編輯模式</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #2c3e50;
+            font-family: 'Courier New', monospace;
+            color: #ecf0f1;
+            overflow: auto;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 10px 20px;
+            background: rgba(52, 73, 94, 0.95);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(127, 140, 141, 0.3);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.3em;
+            color: #27ae60;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .controls input, .controls select {
+            padding: 6px;
+            background: #2c3e50;
+            border: 1px solid #7f8c8d;
+            color: #ecf0f1;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            background: #27ae60;
+            border: none;
+            color: white;
+            border-radius: 3px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        
+        .btn:hover {
+            background: #2ecc71;
+        }
+        
+        .btn.danger {
+            background: #e74c3c;
+        }
+        
+        .btn.view {
+            background: #3498db;
+        }
+        
+        .status {
+            background: #e74c3c;
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        
+        .status.connected {
+            background: #27ae60;
+        }
+        
+        .map-container {
+            position: relative;
+            width: 15000px;
+            height: 12000px;
+            margin: 0;
+            background: #34495e;
+            border: none;
+            cursor: crosshair;
+            overflow: visible;
+            margin-top: 80px;
+            transition: transform 0.3s ease;
+        }
+        
+        .person {
+            position: absolute;
+            color: #ffffff;
+            font-size: 11px;
+            white-space: nowrap;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            cursor: move;
+            border-radius: 4px;
+            background: rgba(46, 204, 113, 0.3);
+            border: 3px solid #2ecc71;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: bold;
+            z-index: 10;
+            transform: rotate(45deg);
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .person .text {
+            transform: rotate(-45deg);
+            pointer-events: none;
+        }
+        
+        .person:hover {
+            background: rgba(52, 152, 219, 0.4);
+            border-color: #3498db;
+        }
+        
+        .person:active,
+        .person.touch-active {
+            background: rgba(52, 152, 219, 0.5) !important;
+            border-color: #3498db !important;
+            transform: rotate(45deg) scale(1.1);
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.6);
+            z-index: 1000;
+            cursor: grabbing;
+        }
+        
+        .person.dragging {
+            background: rgba(231, 76, 60, 0.6) !important;
+            border-color: #e74c3c !important;
+            z-index: 1001;
+            transform: rotate(45deg) scale(1.15);
+            box-shadow: 0 0 25px rgba(231, 76, 60, 0.8);
+            cursor: grabbing;
+            animation: dragPulse 0.8s ease-in-out infinite alternate;
+        }
+        
+        @keyframes dragPulse {
+            from { 
+                box-shadow: 0 0 25px rgba(231, 76, 60, 0.8);
+            }
+            to { 
+                box-shadow: 0 0 35px rgba(231, 76, 60, 1);
+            }
+        }
+        
+        .person.green { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; color: #ffffff; }
+        .person.blue { background: rgba(52, 152, 219, 0.3); border-color: #3498db; color: #ffffff; }
+        .person.purple { background: rgba(155, 89, 182, 0.3); border-color: #9b59b6; color: #ffffff; }
+        .person.orange { background: rgba(230, 126, 34, 0.3); border-color: #e67e22; color: #ffffff; }
+        .person.pink { background: rgba(233, 30, 99, 0.3); border-color: #e91e63; color: #ffffff; }
+        .person.yellow { background: rgba(241, 196, 15, 0.4); border-color: #f1c40f; color: #ffffff; }
+        .person.cyan { background: rgba(26, 188, 156, 0.3); border-color: #1abc9c; color: #ffffff; }
+        .person.red { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; color: #ffffff; }
+        
+        .delete-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 16px;
+            height: 16px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 10px;
+            cursor: pointer;
+            display: none;
+            z-index: 15;
+        }
+        
+        .person:hover .delete-btn,
+        .person:active .delete-btn,
+        .person.touch-active .delete-btn {
+            display: block;
+        }
+        
+        .coords {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            color: #95a5a6;
+            background: rgba(44, 62, 80, 0.8);
+            padding: 8px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        
+        .info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #95a5a6;
+            background: rgba(44, 62, 80, 0.8);
+            padding: 8px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        
+        .debug-overlay {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 9999;
+            text-align: center;
+            min-width: 200px;
+            display: none;
+        }
+        
+        .debug-overlay.show {
+            display: block;
+        }
+        
+        .touch-hint {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(52, 73, 94, 0.95);
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 2000;
+            display: none;
+            font-size: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .touch-hint.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .mobile-tips {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(52, 73, 94, 0.9);
+            color: #ecf0f1;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-tips {
+                display: none;
+            }
+        }
+        
+        .drag-trail {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(231, 76, 60, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 999;
+            animation: trailFade 1s ease-out forwards;
+        }
+        
+        @keyframes trailFade {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        
+        /* 手機優化 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 12px 16px;
+                gap: 8px;
+                font-size: 12px;
+                min-height: 70px;
+            }
+            
+            .header h1 {
+                font-size: 1.2em;
+            }
+            
+            .controls input, .controls select {
+                font-size: 14px;
+                padding: 8px 10px;
+                min-width: 80px;
+                min-height: 44px;
+            }
+            
+            .btn {
+                font-size: 13px;
+                padding: 8px 12px;
+                min-height: 44px;
+                min-width: 50px;
+            }
+            
+            .status {
+                font-size: 12px;
+                padding: 8px 12px;
+                min-height: 36px;
+                display: flex;
+                align-items: center;
+            }
+        }
+        
+        /* 🤖 Android 強制優化 - 更積極的樣式 */
+        @media screen and (max-width: 768px) {
+            .header {
+                padding: 15px 20px !important;
+                gap: 10px !important;
+                min-height: 80px !important;
+                font-size: 14px !important;
+            }
+            
+            .header h1 {
+                font-size: 1.4em !important;
+                flex-shrink: 0;
+            }
+            
+            .controls {
+                gap: 10px !important;
+            }
+            
+            .controls input, .controls select {
+                font-size: 16px !important;
+                padding: 12px 14px !important;
+                min-width: 100px !important;
+                min-height: 48px !important;
+                border-radius: 6px !important;
+            }
+            
+            .btn {
+                font-size: 14px !important;
+                padding: 12px 16px !important;
+                min-height: 48px !important;
+                min-width: 60px !important;
+                border-radius: 6px !important;
+                font-weight: bold !important;
+            }
+            
+            .status {
+                font-size: 13px !important;
+                padding: 10px 14px !important;
+                min-height: 40px !important;
+                border-radius: 6px !important;
+                font-weight: bold !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✏️ 熊窩地圖 - 編輯模式</h1>
+        <div class="controls">
+            <input type="text" id="newItemName" placeholder="輸入名稱" />
+            <select id="itemType">
+                <option value="person">成員 (2×2)</option>
+                <option value="small">小建築 (1×1)</option>
+                <option value="center">中心建築 (3×3)</option>
+                <option value="large">大建築 (4×4)</option>
+            </select>
+            <select id="itemColor">
+                <option value="green">綠色</option>
+                <option value="blue">藍色</option>
+                <option value="purple">紫色</option>
+                <option value="orange">橘色</option>
+                <option value="pink">粉色</option>
+                <option value="yellow">黃色</option>
+                <option value="cyan">青色</option>
+                <option value="red">紅色</option>
+            </select>
+            <button onclick="addItem()" class="btn">新增</button>
+            <button onclick="exportLayout()" class="btn">匯出</button>
+            <button onclick="clearAll()" class="btn danger">清空</button>
+            <div class="status" id="connectionStatus">連接中...</div>
+            <a href="/view" class="btn view">👀 觀看</a>
+            <a href="/" class="btn">🏠 首頁</a>
+        </div>
+    </div>
+    
+    <div class="map-container" id="mapContainer"></div>
+    
+    <div class="coords" id="coords">座標: 0, 0</div>
+    <div class="info">
+        編輯模式 | 項目數: <span id="peopleCount">0</span> | 直接拖拽移動
+    </div>
+    
+    <div class="debug-overlay" id="debugOverlay">除錯資訊</div>
+    
+    <div class="mobile-tips">
+        💡 編輯模式：直接拖拽項目 | 右鍵改色
+    </div>
+    
+    <div class="touch-hint" id="touchHint">
+        <div>🎯 正在拖拽</div>
+        <div style="font-size: 12px; margin-top: 5px;">移動到目標位置後放開</div>
+    </div>
+
+    <script type="module">
+        // Firebase SDK
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // 密碼驗證
+        function checkPassword() {
+            const todayPassword = `bear2025`;
+            
+            const password = prompt('🔐 請輸入編輯密碼：');
+            if (password !== todayPassword) {
+                alert('❌ 密碼錯誤！');
+                window.location.href = '/view';
+                return false;
+            }
+            return true;
+        }
+
+        if (!checkPassword()) {
+            throw new Error('Password verification failed');
+        }
+
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0p9AwDcBOFh-YWm-GixrQZbOJ8HxGduw",
+            authDomain: "ott-c25f4.firebaseapp.com",
+            databaseURL: "https://ott-c25f4-default-rtdb.firebaseio.com",
+            projectId: "ott-c25f4",
+            storageBucket: "ott-c25f4.firebasestorage.app",
+            messagingSenderId: "1057425065132",
+            appId: "1:1057425065132:web:92287e6e56936878860b09",
+            measurementId: "G-E7XY8SW99X"
+        };
+
+        // 基本變數
+        const MAP_WIDTH = 15000;
+        const MAP_HEIGHT = 12000;
+        const GRID_ORIGIN_X = MAP_WIDTH / 2;
+        const GRID_ORIGIN_Y = MAP_HEIGHT / 2;
+        
+        let people = [];
+        let app, database;
+        let isDragging = false;
+        let dragPerson = null;
+        let dragOffset = {x: 0, y: 0};
+        let isUpdatingFromFirebase = false;
+        
+        // 觸控相關變數
+        let touchStartTime = 0;
+        let longPressTimer = null;
+        let currentTouchTarget = null;
+
+        const defaultPeople = [
+            {name: '熊窩', gridX: 0, gridY: 0, type: 'center', color: 'red'},
+            {name: '急先鋒', gridX: 0, gridY: -3, type: 'person', color: 'green'},
+            {name: 'Patato Q', gridX: 3, gridY: -1, type: 'person', color: 'blue'},
+            {name: 'Potato Sue', gridX: 3, gridY: 1, type: 'person', color: 'purple'}
+        ];
+
+        // 偵測裝置類型
+        function isAndroid() {
+            return /Android/i.test(navigator.userAgent);
+        }
+        
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent);
+        }
+        
+        // 除錯資訊
+        function updateDebugInfo(message) {
+            const debugOverlay = document.getElementById('debugOverlay');
+            const coordsEl = document.getElementById('coords');
+            
+            if (coordsEl && isAndroid()) {
+                coordsEl.style.background = 'rgba(231, 76, 60, 0.9)';
+                coordsEl.style.color = 'white';
+                coordsEl.style.padding = '10px';
+                coordsEl.style.fontSize = '12px';
+                coordsEl.innerHTML = `🤖 ${message}`;
+            }
+            
+            if (debugOverlay && isIOS()) {
+                debugOverlay.innerHTML = `🍎 ${message}`;
+                debugOverlay.classList.add('show');
+                
+                setTimeout(() => {
+                    if (!isDragging) {
+                        debugOverlay.classList.remove('show');
+                    }
+                }, 3000);
+            }
+        }
+        
+        function androidDebug(message) {
+            if (isAndroid()) {
+                const coordsEl = document.getElementById('coords');
+                if (coordsEl) {
+                    coordsEl.style.background = 'rgba(231, 76, 60, 0.9)';
+                    coordsEl.style.color = 'white';
+                    coordsEl.style.padding = '10px';
+                    coordsEl.style.fontSize = '14px';
+                    coordsEl.style.fontWeight = 'bold';
+                    coordsEl.innerHTML = `🤖 ${message}`;
+                }
+            }
+        }
+
+        // 觸控反饋函數
+        function showTouchFeedback(element, show = true) {
+            if (show) {
+                element.classList.add('touch-active');
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            } else {
+                element.classList.remove('touch-active');
+            }
+        }
+        
+        function showDragHint(show = true) {
+            const hint = document.getElementById('touchHint');
+            if (show) {
+                hint.classList.add('show');
+            } else {
+                hint.classList.remove('show');
+            }
+        }
+        
+        // 創建拖拽軌跡點
+        function createDragTrail(x, y) {
+            const trail = document.createElement('div');
+            trail.className = 'drag-trail';
+            trail.style.left = x + 'px';
+            trail.style.top = y + 'px';
+            document.getElementById('mapContainer').appendChild(trail);
+            
+            setTimeout(() => {
+                if (trail.parentNode) {
+                    trail.parentNode.removeChild(trail);
+                }
+            }, 1000);
+        }
+
+        // Firebase 初始化
+        try {
+            app = initializeApp(firebaseConfig);
+            database = getDatabase(app);
+            document.getElementById('connectionStatus').textContent = '已連接';
+            document.getElementById('connectionStatus').className = 'status connected';
+            setupFirebaseListener();
+        } catch (error) {
+            console.warn('Firebase 連接失敗:', error);
+            document.getElementById('connectionStatus').textContent = '離線模式';
+            people = [...defaultPeople];
+            renderPeople();
+        }
+
+        function saveToFirebase() {
+            if (!database || isUpdatingFromFirebase) return;
+            try {
+                const layoutRef = ref(database, 'bearDenLayout');
+                set(layoutRef, { people: people, lastUpdated: Date.now() });
+            } catch (error) {
+                console.warn('Firebase 儲存失敗:', error);
+            }
+        }
+
+        function setupFirebaseListener() {
+            const layoutRef = ref(database, 'bearDenLayout');
+            onValue(layoutRef, (snapshot) => {
+                const data = snapshot.val();
+                isUpdatingFromFirebase = true;
+                
+                if (data && data.people) {
+                    people = data.people;
+                } else {
+                    people = [...defaultPeople];
+                    setTimeout(() => {
+                        isUpdatingFromFirebase = false;
+                        saveToFirebase();
+                    }, 100);
+                }
+                
+                renderPeople();
+                isUpdatingFromFirebase = false;
+            });
+        }
+
+        // 座標轉換
+        function gridToPixel(gridX, gridY) {
+            const gridStep = 40;
+            const rotatedX = (gridX - gridY) * gridStep / 2;
+            const rotatedY = (gridX + gridY) * gridStep / 2;
+            return { x: GRID_ORIGIN_X + rotatedX, y: GRID_ORIGIN_Y + rotatedY };
+        }
+
+        function pixelToGrid(pixelX, pixelY) {
+            const deltaX = pixelX - GRID_ORIGIN_X;
+            const deltaY = pixelY - GRID_ORIGIN_Y;
+            const gridStep = 40;
+            const gridX = Math.round((deltaX + deltaY) / gridStep);
+            const gridY = Math.round((deltaY - deltaX) / gridStep);
+            return {gridX, gridY};
+        }
+
+        // 渲染
+        function renderPeople() {
+            const container = document.getElementById('mapContainer');
+            
+            const existingPeople = container.querySelectorAll('.person');
+            existingPeople.forEach(p => p.remove());
+            
+            document.getElementById('peopleCount').textContent = people.length;
+
+            people.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = `person ${item.color || 'green'}`;
+                div.dataset.index = index;
+
+                const textDiv = document.createElement('div');
+                textDiv.className = 'text';
+                textDiv.textContent = item.name;
+                div.appendChild(textDiv);
+
+                const gridSpacing = 40;
+                let size;
+                switch(item.type) {
+                    case 'small': size = gridSpacing * Math.sqrt(2); break;
+                    case 'person': size = gridSpacing * 2 * Math.sqrt(2); break;
+                    case 'center': size = gridSpacing * 3 * Math.sqrt(2); break;
+                    case 'large': size = gridSpacing * 4 * Math.sqrt(2); break;
+                    default: size = gridSpacing * 2 * Math.sqrt(2);
+                }
+
+                const centerPos = gridToPixel(item.gridX, item.gridY);
+                div.style.width = size + 'px';
+                div.style.height = size + 'px';
+                div.style.left = (centerPos.x - size/2) + 'px';
+                div.style.top = (centerPos.y - size/2) + 'px';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '×';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteItem(index);
+                };
+                div.appendChild(deleteBtn);
+
+                // 右鍵改色
+                div.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    changeColor(index);
+                });
+
+                // 觸控事件處理
+                setupTouchEvents(div, index);
+
+                container.appendChild(div);
+            });
+
+            if (!isUpdatingFromFirebase) saveToFirebase();
+        }
+
+        // 設定觸控事件
+        function setupTouchEvents(element, index) {
+            let touchStarted = false;
+            let isDraggingThis = false;
+            
+            // 觸控開始
+            element.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                touchStarted = true;
+                currentTouchTarget = element;
+                touchStartTime = Date.now();
+                
+                updateDebugInfo('📱 觸控開始...');
+                
+                // 立即顯示觸控反饋
+                showTouchFeedback(element, true);
+                
+                // 編輯模式：直接開始拖拽
+                updateDebugInfo('✏️ 編輯模式，立即拖拽');
+                setTimeout(() => {
+                    startDragMode(e, index);
+                    isDraggingThis = true;
+                }, 50);
+                
+            }, { passive: false });
+            
+            // 觸控移動事件
+            element.addEventListener('touchmove', (e) => {
+                if (!isDraggingThis || !isDragging) {
+                    return;
+                }
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const container = document.getElementById('mapContainer');
+                const rect = container.getBoundingClientRect();
+                
+                const clientX = e.touches[0].clientX;
+                const clientY = e.touches[0].clientY;
+                
+                // 計算新位置
+                const newCenterX = clientX - dragOffset.x;
+                const newCenterY = clientY - dragOffset.y;
+                
+                // 轉換為容器內的座標
+                const containerX = newCenterX - rect.left;
+                const containerY = newCenterY - rect.top;
+                
+                const newGrid = pixelToGrid(containerX, containerY);
+                
+                // 更新位置
+                people[dragPerson].gridX = newGrid.gridX;
+                people[dragPerson].gridY = newGrid.gridY;
+                
+                renderPeople();
+                
+                // 創建拖拽軌跡
+                createDragTrail(containerX, containerY);
+                
+                // 更新座標顯示
+                document.getElementById('coords').textContent = 
+                    `🎯 拖拽中: 格線(${newGrid.gridX}, ${newGrid.gridY})`;
+                    
+                updateDebugInfo(`拖拽移動: (${newGrid.gridX}, ${newGrid.gridY})`);
+                
+            }, { passive: false });
+            
+            // 手指放開就結束拖拽
+            element.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const touchDuration = Date.now() - touchStartTime;
+                touchStarted = false;
+                isDraggingThis = false;
+                
+                updateDebugInfo(`📱 觸控結束 (${touchDuration}ms)`);
+                
+                // 清除長按計時器
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+                
+                // 移除觸控反饋
+                showTouchFeedback(element, false);
+                
+                // 放開手指就結束拖拽
+                if (isDragging) {
+                    updateDebugInfo('🎯 手指放開，結束拖拽');
+                    endDrag();
+                }
+                
+                currentTouchTarget = null;
+            });
+            
+            // 觸控取消處理
+            element.addEventListener('touchcancel', (e) => {
+                touchStarted = false;
+                isDraggingThis = false;
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+                showTouchFeedback(element, false);
+                updateDebugInfo('📱 觸控被取消');
+                
+                // 觸控取消也要結束拖拽
+                if (isDragging) {
+                    endDrag();
+                }
+            });
+            
+            // 滑鼠事件（桌面）
+            element.addEventListener('mousedown', (e) => {
+                startDragMode(e, index);
+            });
+        }
+        
+        // 開始拖拽模式
+        function startDragMode(e, index) {
+            updateDebugInfo('🎯 startDragMode 被呼叫');
+            
+            if (isDragging) {
+                updateDebugInfo('❌ 已經在拖拽中');
+                return;
+            }
+            if (e.target.classList.contains('delete-btn')) {
+                updateDebugInfo('❌ 點到刪除按鈕');
+                return;
+            }
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            isDragging = true;
+            dragPerson = index;
+            
+            const element = document.querySelector(`[data-index="${index}"]`);
+            const rect = element.getBoundingClientRect();
+            
+            // 計算相對於容器的偏移
+            const container = document.getElementById('mapContainer');
+            const containerRect = container.getBoundingClientRect();
+            
+            dragOffset.x = clientX - (rect.left + rect.width/2);
+            dragOffset.y = clientY - (rect.top + rect.height/2);
+            
+            element.classList.add('dragging');
+            showDragHint(true);
+            
+            // 觸控震動
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+            
+            updateDebugInfo(`🎯 拖拽開始: ${people[index].name}<br/>狀態: ${isDragging ? '拖拽中' : '未拖拽'}<br/>拖拽對象: ${dragPerson}`);
+            
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // 結束拖拽
+        function endDrag() {
+            if (!isDragging) return;
+            
+            updateDebugInfo('🎯 結束拖拽');
+            
+            isDragging = false;
+            showDragHint(false);
+            
+            document.querySelectorAll('.person').forEach(p => {
+                p.classList.remove('dragging');
+            });
+            
+            dragPerson = null;
+            
+            // 隱藏除錯資訊
+            const debugOverlay = document.getElementById('debugOverlay');
+            if (debugOverlay) {
+                setTimeout(() => {
+                    debugOverlay.classList.remove('show');
+                }, 2000);
+            }
+        }
+
+        // Android 專用：全域觸控結束處理
+        document.addEventListener('touchend', (e) => {
+            if (!isAndroid()) return;
+            
+            updateDebugInfo('🤖 Android 全域觸控結束');
+            
+            // 只有在真正拖拽中才結束
+            if (isDragging && dragPerson !== null) {
+                updateDebugInfo('🤖 Android 偵測到拖拽中，結束');
+                setTimeout(() => {
+                    endDrag();
+                }, 50);
+            }
+        }, { passive: false });
+
+        // 事件監聽器 - 支援觸控
+        function setupEventListeners() {
+            const handleMove = (e) => {
+                const container = document.getElementById('mapContainer');
+                const rect = container.getBoundingClientRect();
+                
+                // 支援觸控和滑鼠
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                const pixelX = clientX - rect.left;
+                const pixelY = clientY - rect.top;
+                const grid = pixelToGrid(pixelX, pixelY);
+                
+                if (!isDragging) {
+                    document.getElementById('coords').textContent = 
+                        `座標: ${Math.round(pixelX)}, ${Math.round(pixelY)} | 格線: (${grid.gridX}, ${grid.gridY})`;
+                }
+                
+                if (isDragging && dragPerson !== null) {
+                    const newPixelX = clientX - rect.left - dragOffset.x;
+                    const newPixelY = clientY - rect.top - dragOffset.y;
+                    const newGrid = pixelToGrid(newPixelX, newPixelY);
+                    
+                    people[dragPerson].gridX = newGrid.gridX;
+                    people[dragPerson].gridY = newGrid.gridY;
+                    
+                    renderPeople();
+                    
+                    // 創建拖拽軌跡
+                    createDragTrail(newPixelX, newPixelY);
+                }
+            };
+            
+            const handleEnd = () => {
+                if (isDragging) {
+                    setTimeout(() => {
+                        endDrag();
+                    }, 10);
+                }
+            };
+            
+            // 滑鼠事件
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+        }
+
+        // 功能函數
+        window.addItem = function() {
+            const nameInput = document.getElementById('newItemName');
+            const name = nameInput.value.trim();
+            if (name) {
+                people.push({
+                    name: name,
+                    gridX: 6, gridY: 6,
+                    type: document.getElementById('itemType').value,
+                    color: document.getElementById('itemColor').value
+                });
+                nameInput.value = '';
+                renderPeople();
+            }
+        }
+
+        function deleteItem(index) {
+            if (confirm(`確定要刪除 "${people[index].name}" 嗎？`)) {
+                people.splice(index, 1);
+                renderPeople();
+            }
+        }
+
+        function changeColor(index) {
+            const colors = ['green', 'blue', 'purple', 'orange', 'pink', 'yellow', 'cyan', 'red'];
+            const currentColor = people[index].color || 'green';
+            const currentIndex = colors.indexOf(currentColor);
+            const nextIndex = (currentIndex + 1) % colors.length;
+            people[index].color = colors[nextIndex];
+            renderPeople();
+        }
+
+        window.exportLayout = function() {
+            const layout = people.map(p => `${p.name}: 格線(${p.gridX}, ${p.gridY}) 顏色:${p.color}`).join('\n');
+            const blob = new Blob([layout], {type: 'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '熊窩座位表.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        window.clearAll = function() {
+            const adminPassword = "SKY1147dean";
+            const passwordInput = prompt('🔐 請輸入管理員密碼：');
+            if (passwordInput !== adminPassword) {
+                alert('❌ 密碼錯誤');
+                return;
+            }
+            if (confirm('確定要清空所有項目嗎？')) {
+                people = [];
+                renderPeople();
+            }
+        }
+
+        // 鍵盤快捷鍵
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && document.getElementById('newItemName') === document.activeElement) {
+                window.addItem();
+            }
+        });
+
+        // 初始化
+        function initialize() {
+            const centerX = MAP_WIDTH / 2 - window.innerWidth / 2;
+            const centerY = MAP_HEIGHT / 2 - window.innerHeight / 2;
+            window.scrollTo(centerX, centerY);
+            
+            // 設定事件監聽器
+            setupEventListeners();
+        }
+
+        initialize();
+    </script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>熊窩地圖 - 觀看模式</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #2c3e50;
+            font-family: 'Courier New', monospace;
+            color: #ecf0f1;
+            overflow: auto;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 10px 20px;
+            background: rgba(52, 73, 94, 0.95);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(127, 140, 141, 0.3);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: #3498db;
+        }
+        
+        .header-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            background: #3498db;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn.edit {
+            background: #27ae60;
+        }
+        
+        .btn.edit:hover {
+            background: #229954;
+        }
+        
+        .status {
+            background: #e74c3c;
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .status.connected {
+            background: #27ae60;
+        }
+        
+        .map-container {
+            position: relative;
+            width: 15000px;
+            height: 12000px;
+            margin: 0;
+            background: #34495e;
+            border: none;
+            overflow: visible;
+            transition: transform 0.3s ease;
+            margin-top: 60px;
+        }
+        
+        .person {
+            position: absolute;
+            color: #ffffff;
+            font-size: 11px;
+            white-space: nowrap;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            border-radius: 4px;
+            background: rgba(46, 204, 113, 0.3);
+            border: 3px solid #2ecc71;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: bold;
+            z-index: 10;
+            transform: rotate(45deg);
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        
+        .person .text {
+            transform: rotate(-45deg);
+        }
+        
+        /* 顏色主題 */
+        .person.green { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; }
+        .person.blue { background: rgba(52, 152, 219, 0.3); border-color: #3498db; }
+        .person.purple { background: rgba(155, 89, 182, 0.3); border-color: #9b59b6; }
+        .person.orange { background: rgba(230, 126, 34, 0.3); border-color: #e67e22; }
+        .person.pink { background: rgba(233, 30, 99, 0.3); border-color: #e91e63; }
+        .person.yellow { background: rgba(241, 196, 15, 0.4); border-color: #f1c40f; }
+        .person.cyan { background: rgba(26, 188, 156, 0.3); border-color: #1abc9c; }
+        .person.red { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
+        
+        .coords {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            color: #95a5a6;
+            background: rgba(44, 62, 80, 0.8);
+            padding: 8px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        
+        .info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #95a5a6;
+            background: rgba(44, 62, 80, 0.8);
+            padding: 8px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                padding: 8px 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.2em;
+            }
+            
+            .btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👀 熊窩地圖 - 觀看模式</h1>
+        <div class="header-right">
+            <div class="status" id="connectionStatus">連接中...</div>
+            <a href="/edit" class="btn edit">✏️ 編輯模式</a>
+            <a href="/" class="btn">🏠 首頁</a>
+        </div>
+    </div>
+    
+    <div class="map-container" id="mapContainer"></div>
+    
+    <div class="coords" id="coords">座標: 0, 0</div>
+    <div class="info">
+        觀看模式 | 項目數: <span id="peopleCount">0</span> | 滾輪縮放 | 拖拽移動視角
+    </div>
+
+    <script type="module">
+        // Firebase SDK
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0p9AwDcBOFh-YWm-GixrQZbOJ8HxGduw",
+            authDomain: "ott-c25f4.firebaseapp.com",
+            databaseURL: "https://ott-c25f4-default-rtdb.firebaseio.com",
+            projectId: "ott-c25f4",
+            storageBucket: "ott-c25f4.firebasestorage.app",
+            messagingSenderId: "1057425065132",
+            appId: "1:1057425065132:web:92287e6e56936878860b09",
+            measurementId: "G-E7XY8SW99X"
+        };
+
+        // 地圖配置
+        const MAP_WIDTH = 15000;
+        const MAP_HEIGHT = 12000;
+        const GRID_ORIGIN_X = MAP_WIDTH / 2;
+        const GRID_ORIGIN_Y = MAP_HEIGHT / 2;
+        
+        let people = [];
+        let app, database;
+
+        // 預設資料
+        const defaultPeople = [
+            {name: '熊窩', gridX: 0, gridY: 0, type: 'center', color: 'red'},
+            {name: '急先鋒', gridX: 0, gridY: -3, type: 'person', color: 'green'},
+            {name: 'Patato Q', gridX: 3, gridY: -1, type: 'person', color: 'blue'},
+            {name: 'Potato Sue', gridX: 3, gridY: 1, type: 'person', color: 'purple'}
+        ];
+
+        // 初始化 Firebase
+        try {
+            app = initializeApp(firebaseConfig);
+            database = getDatabase(app);
+            document.getElementById('connectionStatus').textContent = '已連接';
+            document.getElementById('connectionStatus').className = 'status connected';
+            setupFirebaseListener();
+        } catch (error) {
+            console.warn('Firebase 連接失敗:', error);
+            document.getElementById('connectionStatus').textContent = '離線模式';
+            people = [...defaultPeople];
+            renderPeople();
+        }
+
+        // Firebase 監聽器
+        function setupFirebaseListener() {
+            const layoutRef = ref(database, 'bearDenLayout');
+            onValue(layoutRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.people) {
+                    people = data.people;
+                } else {
+                    people = [...defaultPeople];
+                }
+                renderPeople();
+            });
+        }
+
+        // 座標轉換
+        function gridToPixel(gridX, gridY) {
+            const gridStep = 40;
+            const rotatedX = (gridX - gridY) * gridStep / 2;
+            const rotatedY = (gridX + gridY) * gridStep / 2;
+            return {
+                x: GRID_ORIGIN_X + rotatedX,
+                y: GRID_ORIGIN_Y + rotatedY
+            };
+        }
+
+        function pixelToGrid(pixelX, pixelY) {
+            const deltaX = pixelX - GRID_ORIGIN_X;
+            const deltaY = pixelY - GRID_ORIGIN_Y;
+            const gridStep = 40;
+            const gridX = Math.round((deltaX + deltaY) / gridStep);
+            const gridY = Math.round((deltaY - deltaX) / gridStep);
+            return {gridX, gridY};
+        }
+
+        // 渲染函數
+        function renderPeople() {
+            const container = document.getElementById('mapContainer');
+            container.innerHTML = '';
+            
+            document.getElementById('peopleCount').textContent = people.length;
+
+            people.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = `person ${item.color || 'green'}`;
+
+                const textDiv = document.createElement('div');
+                textDiv.className = 'text';
+                textDiv.textContent = item.name;
+                div.appendChild(textDiv);
+
+                const gridSpacing = 40;
+                let size;
+                switch(item.type) {
+                    case 'small': size = gridSpacing * Math.sqrt(2); break;
+                    case 'person': size = gridSpacing * 2 * Math.sqrt(2); break;
+                    case 'center': size = gridSpacing * 3 * Math.sqrt(2); break;
+                    case 'large': size = gridSpacing * 4 * Math.sqrt(2); break;
+                    default: size = gridSpacing * 2 * Math.sqrt(2);
+                }
+
+                const centerPos = gridToPixel(item.gridX, item.gridY);
+                div.style.width = size + 'px';
+                div.style.height = size + 'px';
+                div.style.left = (centerPos.x - size/2) + 'px';
+                div.style.top = (centerPos.y - size/2) + 'px';
+
+                container.appendChild(div);
+            });
+        }
+
+        // 滑鼠移動顯示座標
+        document.addEventListener('mousemove', (e) => {
+            const container = document.getElementById('mapContainer');
+            const rect = container.getBoundingClientRect();
+            const pixelX = e.clientX - rect.left;
+            const pixelY = e.clientY - rect.top;
+            const grid = pixelToGrid(pixelX, pixelY);
+            
+            document.getElementById('coords').textContent = 
+                `座標: ${Math.round(pixelX)}, ${Math.round(pixelY)} | 格線: (${grid.gridX}, ${grid.gridY})`;
+        });
+
+        // 初始化定位
+        function initialize() {
+            const centerX = MAP_WIDTH / 2 - window.innerWidth / 2;
+            const centerY = MAP_HEIGHT / 2 - window.innerHeight / 2;
+            window.scrollTo(centerX, centerY);
+        }
+
+        initialize();
+    </script>
+</body>
+</html>

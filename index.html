@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聯盟爭霸賽分析 - 和風版</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600&display=swap" rel="stylesheet">
+<style>
+        /* --- 「和風・靜藍」主題 --- */
+        :root {
+            --bg-color: #f8f7f2; /* 米白背景 */
+            --card-bg: #ffffff;  /* 純白卡片 */
+            --text-dark: #34495e; /* 主要文字: 深板岩灰 */
+            --text-light: #7f8c8d;/* 次要文字: 淺灰色 */
+            --accent-indigo: #465a8b; /* 主要點綴: 靛藍 */
+            --accent-vermilion: #c0392b; /* 次要點綴/按鈕: 朱印紅 */
+            --border-color: #e0e0e0; /* 邊框顏色 */
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23e4e4e4' fill-opacity='0.4'%3E%3Cpath fill-rule='evenodd' d='M11 0l5 20H6l5-20zm42 31a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM0 72h40v4H0v-4zm0-8h31.4v4H0v-4zm20-16h20v4H20v-4zM0 56h40v4H0v-4zm0-8h20v4H0v-4zm0-16h40v4H0v-4zm0-8h20v4H0v-4zM40 0h40v4H40v-4zm0 8h31.4v4H40v-4zm0 16h40v4H40v-4zm0-8h20v4H40v-4zm0 32h40v4H40v-4zm0-8h20v4H40v-4zM20 16h20v4H20v-4zM0 16h20v4H0v-4z'/%3E%3C/g%3E%3C/svg%3E");
+            color: var(--text-dark);
+        }
+
+        /* 標題與字體 */
+        .display-5, .card-header, .text-danger {
+            font-family: 'Noto Serif TC', serif;
+            font-weight: 600;
+        }
+        .text-danger {
+            color: var(--accent-vermilion) !important;
+        }
+
+        /* ▼▼▼ 修改後的 Header 排版 ▼▼▼ */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 卡片樣式 */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+        .card-header {
+            background-color: transparent;
+            border-bottom: 2px solid var(--accent-indigo);
+            color: var(--accent-indigo);
+            padding-bottom: 0.75rem;
+        }
+
+        textarea.form-control,
+        input.form-control {
+            background-color: #fdfdfd;
+            border-color: #dcdcdc;
+            color: var(--text-dark) !important;
+        }
+        .form-control:focus {
+            border-color: var(--accent-indigo);
+            box-shadow: 0 0 0 0.25rem rgba(70, 90, 139, 0.2);
+        }
+        .input-group-text {
+            background-color: #e9ecef;
+            border-color: #dcdcdc;
+            color: var(--text-dark);
+        }
+        .data-input {
+            font-family: monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        /* ▼▼▼ 新增首頁按鈕的樣式 ▼▼▼ */
+        .btn-home {
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-home:hover {
+            background-color: var(--accent-indigo);
+            border-color: var(--accent-indigo);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* 按鈕樣式 */
+        .btn-primary {
+            background-color: var(--accent-vermilion);
+            border-color: var(--accent-vermilion);
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #a53125;
+            border-color: #a53125;
+            box-shadow: 0 4px 15px rgba(192, 57, 43, 0.3);
+            transform: translateY(-3px);
+        }
+
+        /* 結果顯示區 */
+        #results-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 25px;
+        }
+        #results {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 0.5rem;
+            border: 1px solid #e0e0e0;
+        }
+        .team-list { font-size: 0.8em; word-break: break-all; }
+        .table-success { --bs-table-bg: #e6f5f3; --bs-table-color: #0f5132; }
+        .table-danger { --bs-table-bg: #f8d7da; --bs-table-color: #842029; }
+    </style>
+</head>
+<body class="container py-4">
+
+    <header class="pb-3 mb-4 border-bottom">
+        <h1 class="display-5">聯盟爭霸賽 + 戰力總和分析 (網頁版)</h1>
+		<a href="/" class="btn btn-home">🏠 首頁</a>
+		    </header>
+    <main>
+        <div class="card mb-4">
+            <div class="card-header">數據輸入區</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-lg-12">
+                        <h5>我方戰力數據 (60組)</h5>
+                        <div class="mb-2">
+                            <label for="our-power-file" class="form-label small text-muted">或從 Excel 檔案 (.xlsx, .xls) 讀取 (第一欄:編號, 第二欄:戰力)：</label>
+                            <input class="form-control form-control-sm" type="file" id="our-power-file" accept=".xlsx, .xls">
+                        </div>
+                        <textarea id="our-power" class="form-control data-input" rows="8"></textarea>
+                    </div>
+                    <div class="col-lg-4">
+                        <h5 class="text-danger">敵左 (20組)</h5>
+                        <div class="mb-2">
+                            <label for="enemy-left-file" class="form-label small text-muted">從 Excel 讀取：</label>
+                            <input class="form-control form-control-sm" type="file" id="enemy-left-file" accept=".xlsx, .xls">
+                        </div>
+                        <textarea id="enemy-left" class="form-control data-input" rows="8"></textarea>
+                    </div>
+                    <div class="col-lg-4">
+                        <h5 class="text-danger">敵中 (20組)</h5>
+                        <div class="mb-2">
+                            <label for="enemy-center-file" class="form-label small text-muted">從 Excel 讀取：</label>
+                            <input class="form-control form-control-sm" type="file" id="enemy-center-file" accept=".xlsx, .xls">
+                        </div>
+                        <textarea id="enemy-center" class="form-control data-input" rows="8"></textarea>
+                    </div>
+                    <div class="col-lg-4">
+                        <h5 class="text-danger">敵右 (20組)</h5>
+                        <div class="mb-2">
+                            <label for="enemy-right-file" class="form-label small text-muted">從 Excel 讀取：</label>
+                            <input class="form-control form-control-sm" type="file" id="enemy-right-file" accept=".xlsx, .xls">
+                        </div>
+                        <textarea id="enemy-right" class="form-control data-input" rows="8"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">模擬與分析</div>
+            <div class="card-body">
+                <div class="row align-items-end g-3">
+                    <div class="col-lg-8">
+                        <h6>🎯 精確分組優化</h6>
+                        <div class="row">
+                            <div class="col-md-4"><div class="input-group"><span class="input-group-text">左路優勢</span><input type="number" id="left-advantage" class="form-control" value="2000"></div></div>
+                            <div class="col-md-4"><div class="input-group"><span class="input-group-text">中路優勢</span><input type="number" id="center-advantage" class="form-control" value="2000"></div></div>
+                            <div class="col-md-4"><div class="input-group"><span class="input-group-text">右路優勢</span><input type="number" id="right-advantage" class="form-control" value="2000"></div></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="d-grid gap-2">
+                            <button id="optimize-btn" class="btn btn-primary btn-lg">執行精確分組</button>
+                            <button id="reset-btn" class="btn btn-secondary">還原預設數據</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-container">
+            <h4>分析結果</h4>
+            <div id="results">結果將會顯示在這裡...</div>
+        </div>
+    </main>
+
+    <footer class="pt-3 mt-4 text-muted border-top">&copy; 2025 - 戰情分析中心</footer>
+
+    <script>
+        // 為了版面整潔，JavaScript 程式碼與上一個版本完全相同，此處省略。
+        // 您在複製貼上時，會包含完整的 script 區塊。
+        document.addEventListener('DOMContentLoaded', function() {
+            const defaultData = {
+                ourPower: "1 2459 2 2635 3 2683 4 2694 5 2697 6 2730 7 2741 8 2748 9 2754 10 2778 11 2793 12 2816 13 2845 14 2858 15 2887 16 2888 17 2904 18 2921 19 2932 20 2949 21 2950 22 2968 23 2997 24 3040 25 3044 26 3066 27 3083 28 3084 29 3092 30 3093 31 3136 32 3169 33 3191 34 3218 35 3220 36 3221 37 3243 38 3246 39 3256 40 3266 41 3283 42 3289 43 3305 44 3306 45 3339 46 3341 47 3378 48 3380 49 3398 50 3535 51 3613 52 3748 53 3782 54 3819 55 4010 56 4155 57 4164 58 4498 59 5490 60 6223",
+                enemyLeft: "1 2957 2 3610 3 3371 4 2948 5 3676 6 2923 7 3929 8 3519 9 3738 10 3662 11 3705 12 3937 13 3383 14 2893 15 4019 16 3019 17 2856 18 3231 19 3909 20 2946",
+                enemyCenter: "1 2599 2 2790 3 3339 4 2930 5 2770 6 3656 7 2991 8 2820 9 3720 10 2673 11 2773 12 2858 13 2921 14 2482 15 3130 16 3567 17 3732 18 2773 19 3033 20 3291",
+                enemyRight: "1 2787 2 3182 3 2500 4 3193 5 1809 6 2055 7 2335 8 1957 9 2246 10 2863 11 2616 12 2141 13 2944 14 1873 15 2511 16 1860 17 2797 18 2152 19 3127 20 2793"
+            };
+            const elements = {
+                ourPower: document.getElementById('our-power'),
+                enemyLeft: document.getElementById('enemy-left'),
+                enemyCenter: document.getElementById('enemy-center'),
+                enemyRight: document.getElementById('enemy-right'),
+                leftAdvantage: document.getElementById('left-advantage'),
+                centerAdvantage: document.getElementById('center-advantage'),
+                rightAdvantage: document.getElementById('right-advantage'),
+                optimizeBtn: document.getElementById('optimize-btn'),
+                resetBtn: document.getElementById('reset-btn'),
+                resultsDiv: document.getElementById('results'),
+                ourPowerFile: document.getElementById('our-power-file'),
+                enemyLeftFile: document.getElementById('enemy-left-file'),
+                enemyCenterFile: document.getElementById('enemy-center-file'),
+                enemyRightFile: document.getElementById('enemy-right-file')
+            };
+            function resetToDefaults() {
+                elements.ourPower.value = defaultData.ourPower;
+                elements.enemyLeft.value = defaultData.enemyLeft;
+                elements.enemyCenter.value = defaultData.enemyCenter;
+                elements.enemyRight.value = defaultData.enemyRight;
+                elements.leftAdvantage.value = "2000";
+                elements.centerAdvantage.value = "2000";
+                elements.rightAdvantage.value = "2000";
+                elements.resultsDiv.innerHTML = '<p class="text-muted">已還原為預設數據。請點擊按鈕開始分析。</p>';
+                elements.ourPowerFile.value = '';
+                elements.enemyLeftFile.value = '';
+                elements.enemyCenterFile.value = '';
+                elements.enemyRightFile.value = '';
+            }
+            function handleExcelUpload(file, targetTextarea) {
+                if (!file) { return; }
+                targetTextarea.value = '正在從 Excel 檔案讀取數據...';
+                const formData = new FormData();
+                formData.append('excel_file', file);
+                fetch('/api/upload_excel', { method: 'POST', body: formData })
+                .then(response => {
+                    if (!response.ok) { return response.json().then(err => { throw new Error(err.error || '伺服器錯誤') }); }
+                    return response.json();
+                })
+                .then(data => { targetTextarea.value = data.power_text; })
+                .catch(error => {
+                    alert(`讀取 Excel 檔案失敗：\n${error.message}`);
+                    targetTextarea.value = '';
+                });
+            }
+            elements.ourPowerFile.addEventListener('change', (event) => handleExcelUpload(event.target.files[0], elements.ourPower));
+            elements.enemyLeftFile.addEventListener('change', (event) => handleExcelUpload(event.target.files[0], elements.enemyLeft));
+            elements.enemyCenterFile.addEventListener('change', (event) => handleExcelUpload(event.target.files[0], elements.enemyCenter));
+            elements.enemyRightFile.addEventListener('change', (event) => handleExcelUpload(event.target.files[0], elements.enemyRight));
+            elements.optimizeBtn.addEventListener('click', function() {
+                elements.resultsDiv.innerHTML = `<div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div><strong>後端伺服器計算中...</strong></div>`;
+                const dataToSend = {
+                    our_power: elements.ourPower.value,
+                    enemy_left: elements.enemyLeft.value,
+                    enemy_center: elements.enemyCenter.value,
+                    enemy_right: elements.enemyRight.value,
+                    left_advantage: elements.leftAdvantage.value,
+                    center_advantage: elements.centerAdvantage.value,
+                    right_advantage: elements.rightAdvantage.value
+                };
+                fetch('/api/precise_optimization', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dataToSend)
+                })
+                .then(response => {
+                    if (!response.ok) { return response.json().then(err => { throw new Error(err.error || '伺服器錯誤') }); }
+                    return response.json();
+                })
+                .then(result => {
+                    let allocationHtml = '';
+                    if (result.best_allocation) {
+                        const allocation = result.best_allocation;
+                        const laneOrder = ['left', 'center', 'right'];
+                        let allocationTables = laneOrder.map(laneName => {
+                            const laneData = allocation.lanes[laneName];
+                            const successClass = laneData.is_success ? 'table-success' : 'table-danger';
+                            const teamsText = laneData.teams.map(t => `${t[0]}(${t[1]})`).join(', ');
+                            return `
+                                <div class="col-lg-4">
+                                    <table class="table table-bordered table-sm">
+                                        <thead><tr class="${successClass}"><th colspan="2">分組結果: ${laneName.charAt(0).toUpperCase() + laneName.slice(1)} Lane</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>狀態</td><td>${laneData.is_success ? '達標' : '未達標'}</td></tr>
+                                            <tr><td>成員數</td><td>${laneData.count} / 20</td></tr>
+                                            <tr><td>實際戰力</td><td>${laneData.total_power.toLocaleString()}</td></tr>
+                                            <tr><td>目標戰力</td><td>${laneData.target.toLocaleString()}</td></tr>
+                                            <tr><td>戰力差額</td><td>${(laneData.difference >= 0 ? '+' : '') + laneData.difference.toLocaleString()}</td></tr>
+                                            <tr><td colspan="2" class="team-list">${teamsText}</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+                        }).join('');
+                        allocationHtml = `<hr><h5>建議分配方案</h5><div class="row g-3">${allocationTables}</div>`;
+                    }
+                    const summaryBadgeClass = (result.best_allocation && result.best_allocation.success) ? 'bg-success' : 'bg-warning text-dark';
+                    elements.resultsDiv.innerHTML = `
+                        <h5><span class="badge ${summaryBadgeClass}">${result.title}</span></h5>
+                        <p><strong>計算摘要：</strong> ${result.summary.replace(/\n/g, '<br>')}</p>
+                        ${allocationHtml}
+                    `;
+                })
+                .catch(error => {
+                    elements.resultsDiv.innerHTML = `<div class="alert alert-danger"><h4>計算時發生錯誤！</h4><p>請確認後端伺服器 (app.py) 正在運行，並且沒有顯示錯誤訊息。</p><hr><p class="mb-0"><strong>錯誤詳情:</strong> ${error.message}</p></div>`;
+                    console.error('Fetch Error:', error);
+                });
+            });
+            elements.resetBtn.addEventListener('click', resetToDefaults);
+            resetToDefaults();
+        });
+    </script>
+</body>
+</html>
