@@ -446,7 +446,15 @@
             const password = prompt('🔐 請輸入編輯密碼：');
             if (password !== todayPassword) {
                 alert('❌ 密碼錯誤！');
-                window.location.href = './view.html';
+        // --- Start of new code ---
+                // 取得目前的 URL 路徑
+                const currentPath = window.location.pathname;
+                // 找到最後一個 '/'，以取得當前的目錄路徑
+                const directoryPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+                // 組合出正確的 view.html 完整路徑
+                window.location.href = directoryPath + '/view.html';
+                // --- End of new code ---
+        
                 return false;
             }
             return true;
